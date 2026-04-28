@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  RESTAURANT
+  RIDER
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+}
+
+enum RiderStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  name         String
+  phone        String?
+  address      String?
+  profileImage String?
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  restaurant   Restaurant?
+  rider        Rider?
+  orders       Order[]
+  notifications Notification[]
+  transactions Transaction[]
+}
+
+model Restaurant {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  name        String
+  address     String
+  lat         Float?
+  lng         Float?
+  logo        String?
+  rating      Float    @default(0)
+  commission  Float    @default(15.0)
+  isActive    Boolean  @default(true)
+  menuItems   MenuItem[]
+  orders      Order[]
+}
+
+model MenuItem {
+  id           String     @id @default(uuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  name         String
+  description  String?
+  price        Float
+  image        String?
+  category     String?
+  isActive     Boolean    @default(true)
+  orderItems   OrderItem[]
+}
+
+model Rider {
+  id           String      @id @default(uuid())
+  userId       String      @unique
+  user         User        @relation(fields: [userId], references: [id])
+  vehicleType  String?
+  plateNumber  String?
+  status       RiderStatus @default(OFFLINE)
+  currentLat   Float?
+  currentLng   Float?
+  earnings     Float       @default(0)
+  orders       Order[]
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  customerId     String
+  customer       User        @relation(fields: [customerId], references: [id])
+  restaurantId   String
+  restaurant     Restaurant  @relation(fields: [restaurantId], references: [id])
+  riderId        String?
+  rider          Rider?      @relation(fields: [riderId], references: [id])
+  status         OrderStatus @default(PENDING)
+  totalAmount    Float
+  deliveryFee    Float       @default(0)
+  surgePrice     Float       @default(0)
+  paymentMethod  String      @default("COD") // COD, DIGITAL
+  paymentStatus  String      @default("PENDING")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  orderItems     OrderItem[]
+  transactions   Transaction[]
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+  price      Float
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  orderId   String?
+  order     Order?    @relation(fields: [orderId], references: [id])
+  amount    Float
+  type      String   // EARNING, PAYOUT, COMMISSION
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
